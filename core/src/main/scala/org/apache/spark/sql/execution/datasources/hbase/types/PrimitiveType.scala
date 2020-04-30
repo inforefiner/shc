@@ -24,20 +24,30 @@ import org.apache.spark.sql.execution.datasources.hbase._
 
 class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
 
-  private def fromBytes(src: HBaseType, dt: DataType): Any  = dt match {
-    case BooleanType => toBoolean(src)
-    case ByteType => src(0)
-    case DoubleType => Bytes.toDouble(src)
-    case FloatType => Bytes.toFloat(src)
-    case IntegerType => Bytes.toInt(src)
-    case LongType => Bytes.toLong(src)
-    case ShortType => Bytes.toShort(src)
-    case StringType => toUTF8String(src, src.length)
-    case BinaryType => src
-    // this block MapType in future if connector want to support it
-    case m: MapType => fromBytes(src, m.valueType)
-    case _ => throw new UnsupportedOperationException(s"unsupported data type ${f.get.dt}")
+  private def fromBytes(src: HBaseType, dt: DataType): Any  = {
+
+    if (src != null && src.length == 0)  {
+      null
+    } else {
+      dt match {
+        case BooleanType => toBoolean(src)
+        case ByteType => src(0)
+        case DoubleType => Bytes.toDouble(src)
+        case FloatType => Bytes.toFloat(src)
+        case IntegerType => Bytes.toInt(src)
+        case LongType => Bytes.toLong(src)
+        case ShortType => Bytes.toShort(src)
+        case StringType => toUTF8String(src, src.length)
+        case BinaryType => src
+        // this block MapType in future if connector want to support it
+        case m: MapType => fromBytes(src, m.valueType)
+        case _ => throw new UnsupportedOperationException(s"unsupported data type ${f.get.dt}")
+      }
+    }
   }
+  
+  
+  
 
   def fromBytes(src: HBaseType): Any = {
     if (f.isDefined) {
@@ -62,6 +72,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case data: Short => Bytes.toBytes(data)
       case data: UTF8String => data.getBytes
       case data: String => Bytes.toBytes(data)
+      case null => "".getBytes
       case _ => throw new
           UnsupportedOperationException(s"PrimitiveType coder: unsupported data type $input")
     }
