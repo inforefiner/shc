@@ -41,12 +41,16 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
           case BinaryType => src
           // this block MapType in future if connector want to support it
           case m: MapType => fromBytes(src, m.valueType)
-          case _ => throw new UnsupportedOperationException(s"unsupported data type ${f.get.dt}")
+          case _ => {
+            if(dt.typeName.toLowerCase.startsWith("decimal")){
+              Decimal.apply(Bytes.toString(src))
+            }else {
+              throw new UnsupportedOperationException(s"unsupported data type ${f.get.dt} ${dt.typeName}")
+            }
+          }
         }
       }catch {
         case ex: Exception => {
-          ex.printStackTrace() // 打印到标准err
-          System.err.println("exception===>: " + new String(src))  // 打印到标准err
           throw new RuntimeException("hbase convert exception" + " " + new String(src), ex);
         }
       }
@@ -70,6 +74,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case data: Array[Byte] => data
       case data: Double => Bytes.toBytes(data)
       case data: Float => Bytes.toBytes(data)
+      case data: java.math.BigDecimal => Bytes.toBytes(data.toString)
       case data: Int => Bytes.toBytes(data)
       case data: Long => Bytes.toBytes(data)
       case data: Short => Bytes.toBytes(data)
@@ -77,7 +82,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case data: String => Bytes.toBytes(data)
       case null => "".getBytes
       case _ => throw new
-          UnsupportedOperationException(s"PrimitiveType coder: unsupported data type $input")
+          UnsupportedOperationException(s"PrimitiveType coder: unsupported data type $input ${input.getClass.toGenericString}")
     }
   }
 
@@ -107,6 +112,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case ByteType => src(offset)
       case DoubleType => Bytes.toDouble(src, offset)
       case FloatType => Bytes.toFloat(src, offset)
+      case _: DecimalType => Decimal.apply(Bytes.toString(src))
       case IntegerType => Bytes.toInt(src, offset)
       case LongType => Bytes.toLong(src, offset)
       case ShortType => Bytes.toShort(src, offset)
@@ -115,8 +121,14 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
         val newArray = new Array[Byte](length)
         System.arraycopy(src, offset, newArray, 0, length)
         newArray
-      case _ => throw new
-        UnsupportedOperationException(s"PrimitiveType coder: unsupported data type ${field.dt}")
+      case _ =>{
+        if(field.dt.typeName.toLowerCase.startsWith("decimal")){
+          Decimal.apply(Bytes.toString(src))
+        }else{
+          throw new
+              UnsupportedOperationException(s"PrimitiveType coder: unsupported data type ${field.dt} ${field.dt.typeName}")
+        }
+      }
     }
   }
 
