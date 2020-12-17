@@ -43,7 +43,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
           case m: MapType => fromBytes(src, m.valueType)
           case _ => {
             if(dt.typeName.toLowerCase.startsWith("decimal")){
-              Decimal.apply(Bytes.toString(src))
+              castDecimal(src, dt)
             }else {
               throw new UnsupportedOperationException(s"unsupported data type ${f.get.dt} ${dt.typeName}")
             }
@@ -52,6 +52,35 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       }catch {
         case ex: Exception => {
           throw new RuntimeException("hbase convert exception" + " " + new String(src), ex);
+        }
+      }
+    }
+  }
+
+  private def castDecimal(src: HBaseType, dt: DataType): Any = {
+    try{
+      Decimal.apply(Bytes.toString(src)) //现在decimal在hbase统一用字符串存
+    }catch {
+      case e : Exception => {
+        //兼容原来用double存储的类型
+        val typeInJson = dt.typeName.toLowerCase;
+        val begin = typeInJson.indexOf("(")
+        val end = typeInJson.indexOf(")")
+        val sep = typeInJson.indexOf(",")
+        if(begin > 0 && end > 0 && sep > 0){
+          val precision =  typeInJson.substring(begin + 1, sep).trim.toInt
+          val scale = typeInJson.substring(sep+1, end).trim.toInt
+          if(scale == 0){
+            if(precision < 11){
+              Decimal.apply(Bytes.toInt(src))
+            }else {
+              Decimal.apply(Bytes.toLong(src))
+            }
+          }else{
+            Decimal.apply(Bytes.toDouble(src))
+          }
+        }else{
+          Decimal.apply(Bytes.toDouble(src))
         }
       }
     }
@@ -123,7 +152,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
         newArray
       case _ =>{
         if(field.dt.typeName.toLowerCase.startsWith("decimal")){
-          Decimal.apply(Bytes.toString(src))
+          castDecimal(src, field.dt)
         }else{
           throw new
               UnsupportedOperationException(s"PrimitiveType coder: unsupported data type ${field.dt} ${field.dt.typeName}")
