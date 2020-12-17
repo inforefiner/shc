@@ -141,7 +141,6 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case ByteType => src(offset)
       case DoubleType => Bytes.toDouble(src, offset)
       case FloatType => Bytes.toFloat(src, offset)
-      case _: DecimalType => Decimal.apply(Bytes.toString(src))
       case IntegerType => Bytes.toInt(src, offset)
       case LongType => Bytes.toLong(src, offset)
       case ShortType => Bytes.toShort(src, offset)
